@@ -1,0 +1,102 @@
+---
+title: "EV sales"
+author: "Pujen Shrestha"
+date: '2022-12-28'
+output: html_document
+---
+Original idea adapted from work by Tanesya which can be found at https://rpubs.com/tangerine/economist-plot
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(magrittr)
+library(ggthemes)
+library(scales)
+library(magick)
+```
+
+```{r}
+data <- read_csv("/Users/pujenshrestha/Documents/Visualisations/EVsales/IEA-EV-dataEV salesCarsHistorical.csv")
+```
+
+```{r}
+
+data <- data %>% 
+  filter(powertrain == "BEV")
+
+relevant_regions <- data %>% 
+  group_by(region) %>% 
+  summarise(sales = sum(value)) %>% 
+  arrange(desc(sales)) %>% 
+  filter(region != "World") %>% 
+  top_n(5) %>% 
+  pull(region)
+
+dataPlot <- data %>% 
+  filter(region %in% relevant_regions) %>% 
+  group_by(region, year) %>% 
+  summarise(sales = sum(value)/1000) %>% 
+  filter(year >= 2011)
+
+dataPlotTotal <- dataPlot %>% 
+  group_by(year) %>% 
+  summarise(sales = sum(sales))
+
+```
+
+
+```{r}
+plot <- ggplot(dataPlot, aes(year, sales)) +
+  geom_area(aes(fill = region), color = "white", linewidth = .3) +
+  geom_line(data = dataPlotTotal, aes(year, sales), color = "black") +
+  labs(title = "EV sales from countries making up the top 5 purchasers",
+       subtitle = "'000",
+       caption = "Source: IEA",
+       x = NULL,
+       y = NULL) +
+  scale_x_continuous(breaks = seq(2011,2021),
+                     labels = c(2011, paste0(1, seq(2,9)), 20, 21),
+                     expand = expand_scale(mult = c(0.03,0.02)))+
+  scale_y_continuous(position = "right",
+                     breaks = seq(0,4000,500),
+                     labels = paste(seq(0,4000,500)),
+                     expand = expand_scale(mult = c(0,0.1)))+
+  scale_fill_manual(values = c("#00a4dc", "#00526d", "#7b2713","#eb9e84", "#f15a40"))
+
+plot
+```
+
+```{r}
+plot <- plot +
+  theme(aspect.ratio = 3.2/7,
+        text = element_text(family = "Tahoma"),
+        plot.margin = margin(0,15,0,15),
+        panel.background = element_rect(fill = "white"),
+        panel.grid.major.x = element_blank(),
+        panel.grid.major.y = element_line(color = "darkgrey"),
+        legend.text = element_text(margin = margin(l=3), size = 10),
+        legend.title = element_blank(),
+        legend.position = c(0.16,0.7),
+        legend.key.width = unit(25,"pt"),
+        legend.key.height = unit(15, "pt"),
+        axis.text = element_text(size = rel(1), color = "gray8"),
+        axis.line.x  = element_line(color = "gray8"),
+        axis.ticks.y = element_blank(),
+        plot.title = element_text(size = rel(1.5), hjust = 0, face = "bold"),
+        plot.caption = element_text(hjust = 0, size = 9)
+        )
+```
+
+```{r}
+# ggsave(filename = "EV Sales Plot Example.png",
+#        plot = plot,
+#        path = "/Users/pujenshrestha/Documents/Visualisations/Finalised Examples/",
+#        width = 8,
+#        height = 4.5,
+#        units = "in",
+#        dpi = 300)
+```
+
