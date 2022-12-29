@@ -1,0 +1,262 @@
+---
+title: "Forest Plots"
+author: "Pujen Shrestha"
+format: html
+editor: source
+editor_options: 
+  chunk_output_type: inline
+---
+
+## Annotated Forest Plots using ggplot2
+
+```{r}
+library(tidyverse)
+library(gt)
+library(confintr) # for confidence intervals
+library(data.table)
+library(purrr)
+
+source("/Users/pujenshrestha/Documents/Visualisations/Helper Functions.R")
+```
+
+## Random data
+
+Generating random data that would look something like a BehSci RCT or the output of some regression. This is data is not meant to be looked into too hard! Thanks!
+
+```{r}
+
+generate_data <- function(rep, rep_n, mean, sd) {
+  data_out <- tibble(group = rep(rep, rep_n),
+                 outcome = rnorm(rep_n, mean = mean, sd = sd)) 
+  return(data_out)
+}
+
+data_1 <- generate_data(1, 200, 6.5, 1.0)
+data_2 <- generate_data(2, 200, 7, 1.8)
+data_3 <- generate_data(3, 200, 6, 3.2)
+data_4 <- generate_data(4, 200, 7, 2.1)
+data_5 <- generate_data(5, 200, 8, 2.0)
+
+data_generated <- data_1 %>% 
+  rbind(data_2) %>% 
+  rbind(data_3) %>% 
+  rbind(data_4) %>% 
+  rbind(data_5) %>% 
+  mutate(group = as.character(group))
+
+```
+
+```{r}
+
+confi_inter <- function(group_id) {
+  dataplot <- data_generated %>% 
+    filter(group == group_id) %>%
+    pull(outcome) %>% 
+    ci_mean()
+  
+  dataplot <- c(dataplot$estimate, dataplot$interval)
+  
+  dataplot <- tibble(group_id = group_id,
+                     estimate = dataplot[1],
+                     lower = dataplot[2],
+                     higher = dataplot[3])
+  return(dataplot)
+}
+
+groups <- c(1, 2, 3, 4, 5)
+
+dataplot <- map_dfr(groups, confi_inter)
+
+reg_1 <- lm(outcome ~ group, data = data_generated)
+reg_1_summary <- summary(reg_1)
+reg_1_coefficients <- reg_1_summary$coefficients
+test <- c(0, reg_1_coefficients[2:5,4])
+
+dataplot$pvalues <- test
+dataplot$group_id <- as.character(dataplot$group_id)
+```
+
+```{r}
+dataPlot_control <- dataplot[1,]
+
+dataPlot <- dataplot[2:5,]
+```
+
+```{r}
+glimpse(dataPlot)
+```
+
+
+# Start plotting 
+
+```{r}
+p <- dataPlot %>% 
+  ggplot(aes(y = factor(group_id))) + 
+  theme_classic()
+p
+```
+### Plot Estimate point and CI's
+```{r}
+p <- p +
+  geom_linerange(aes(xmin=lower, xmax=higher), color = pujGreen2) +
+  geom_point(aes(x=estimate), shape=16, size=3.5, color = pujGreen2, stroke = 0)
+p
+```
+### Set plot dimensions
+```{r}
+p <- p +
+  coord_cartesian(ylim=c(1,5), xlim=c(4.5, 8.5))
+p
+```
+### Use control mean as reference vline
+```{r}
+control_mean <- dataPlot_control$estimate[[1]]
+
+p <- p +
+  geom_vline(xintercept = control_mean, linetype="dashed", color = pujGrey) +
+  labs(x= "Outcome", y = "Group")
+p
+```
+### Add text to describe reference vline
+```{r}
+p <- p +
+  annotate("text", x = control_mean - 1, y = 5, label = "Below control mean", color = pujGrey) +
+  annotate("text", x = control_mean + 1, y = 5, label = "Above control mean", color = pujGrey)
+p
+
+```
+
+### Remove extra axis marks and text, change relevant acis marks and text to Grey
+```{r}
+p_mid <- p + 
+  theme(axis.line.y = element_blank(),
+        axis.ticks.y= element_blank(),
+        axis.text.y= element_blank(),
+        axis.title.y= element_blank(),
+        axis.line.x = element_line(color = pujGrey),
+        axis.title.x = element_text(color = pujGrey))
+p_mid
+```
+### Create labels
+```{r}
+# wrangle results into pre-plotting table form
+dataPlot <- dataPlot %>% 
+  # round estimates and 95% CIs to 2 decimal places for journal specifications
+  mutate(across(
+    c(estimate, lower, higher),
+    ~ str_pad(
+      round(.x, 2),
+      width = 4,
+      pad = "0",
+      side = "right"
+    )
+  ),
+  # add an "-" between HR estimate confidence intervals
+  estimate_lab = paste0(estimate, " (", lower, "-", higher, ")")) %>% 
+  # round p-values to two decimal places, except in cases where p < .001
+  mutate(pvalues = case_when(
+    pvalues < .001 ~ "<0.001",
+    round(pvalues, 2) == .05 ~ as.character(round(pvalues,3)),
+    pvalues < .01 ~ str_pad( # if less than .01, go one more decimal place
+      as.character(round(pvalues, 3)),
+      width = 4,
+      pad = "0",
+      side = "right"
+    ),
+    TRUE ~ str_pad( # otherwise just round to 2 decimal places and pad string so that .2 reads as 0.20
+      as.character(round(pvalues, 2)),
+      width = 4,
+      pad = "0",
+      side = "right"
+    )
+  )) %>% 
+  # add a row of data that are actually column names which will be shown on the plot in the next step
+  bind_rows(
+    data.frame(
+      group_id = "Model",
+      estimate_lab = "95% CI",
+      lower = "",
+      higher = "",
+      pvalues = "p-value"
+    )
+  ) 
+# %>% 
+#   mutate(group_id = fct_rev(fct_relevel(group_id, "Model")))
+
+glimpse(dataPlot)
+```
+
+```{r}
+p_left <-
+  dataPlot %>% 
+  ggplot(aes(y = group_id))
+p_left
+```
+
+```{r}
+p_left <- 
+  p_left +
+  geom_text(aes(x = 0, label = group_id), hjust = 0, fontface = "bold",
+            color = pujGrey)
+p_left
+```
+
+```{r}
+p_left <- p_left +
+  geom_text(
+    aes(x = 3, label = estimate_lab),
+    hjust = 0,
+    fontface = ifelse(dataPlot$estimate_lab == "95% CI", "bold", "plain"),
+    color = pujGrey
+  )
+
+p_left
+```
+
+```{r}
+p_left <-
+  p_left +
+  theme_void() +
+  coord_cartesian(xlim = c(0, 9))
+
+p_left 
+```
+
+```{r}
+# right side of plot - pvalues
+p_right <-
+  dataPlot  %>% 
+  ggplot() +
+  geom_text(
+    aes(x = 0, y = group_id, label = pvalues),
+    hjust = 0,
+    fontface = ifelse(dataPlot$pvalues == "p-value", "bold", "plain"),
+    color = pujGrey
+  ) +
+  theme_void() 
+
+p_right
+```
+
+
+```{r}
+library(patchwork)
+layout <- c(
+  area(t = 0, l = 0, b = 30, r = 4), # left plot, starts at the top of the page (0) and goes 30 units down and 3 units to the right
+  area(t = 1, l = 5, b = 30, r = 13), # middle plot starts a little lower (t=1) because there's no title. starts 1 unit right of the left plot (l=4, whereas left plot is r=3), goes to the bottom of the page (30 units), and 6 units further over from the left plot (r=9 whereas left plot is r=3)
+  area(t = 0, l = 12.5, b = 30, r = 15) # right most plot starts at top of page, begins where middle plot ends (l=9, and middle plot is r=9), goes to bottom of page (b=30), and extends two units wide (r=11)
+)
+# final plot arrangement
+(plot <- p_left + p_mid + p_right + plot_layout(design = layout))
+```
+
+```{r}
+# ggsave(filename = "Forest Plot Example.png", 
+#        plot = plot,
+#        path = "/Users/pujenshrestha/Documents/Visualisations/Finalised Examples/",
+#        width = 8.5,
+#        height = 4.5,
+#        units = "in",
+#        dpi = 300)
+```
+

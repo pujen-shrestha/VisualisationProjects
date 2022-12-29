@@ -1,0 +1,50 @@
+---
+title: "GeoData"
+author: "Pujen Shrestha"
+date: '2022-12-27'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+library(data.table)
+library(rgdal)
+library(geojsonR)
+library(jsonlite)
+
+```
+
+```{r}
+data <- read.table("/Users/pujenshrestha/Documents/Visualisations/geojson/AfricaCenter-Full.tsv", header=FALSE, sep="\t", quote="")
+
+data_json <- lapply(data$V2, jsonlite::parse_json)
+
+str(data_json)
+
+data_json_string <- toJSON(data_json)
+
+write_json(data_json, path = "/Users/pujenshrestha/Documents/Visualisations/geojson/export.JSON")
+
+## Save the JSON to file
+save(exportJson, file="/Users/pujenshrestha/Documents/Visualisations/geojson/export.JSON")
+```
+
+```{r}
+library(leaflet)
+
+topoData <- readLines("https://rstudio.github.io/leaflet/json/us-10m.json") %>% paste(collapse = "\n") 
+
+leaflet() %>% setView(lng = -98.583, lat = 39.833, zoom = 3) %>%
+  addTiles() %>%
+  addTopoJSON(topoData, weight = 1, color = "#444444", fill = FALSE)
+```
+

@@ -1,0 +1,170 @@
+---
+title: "Treatment effect visualisation"
+author: "Pujen Shrestha"
+date: '2022-12-27'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+options(scipen = 999)
+
+library(tidyverse)
+library(broom)
+
+source("/Users/pujenshrestha/Documents/Visualisations/Helper Functions.R")
+```
+
+```{r}
+set.seed(13579L)
+
+generate_data <- function(rep, rep_n, mean, sd) {
+  data_out <- tibble(arm = rep(rep, rep_n),
+                 outcome = rnorm(rep_n, mean = mean, sd = sd)) 
+  return(data_out)
+}
+
+data_1 <- generate_data("Control", 200, 7, 1.0)
+data_2 <- generate_data("Treatment 1", 200, 7, 1.8)
+data_3 <- generate_data("Treatment 2", 200, 8, 3.2)
+
+data_generated <- data_1 %>% 
+  rbind(data_2) %>% 
+  rbind(data_3) %>% 
+  mutate(arm = as.character(arm))
+
+total_sample <- nrow(data_generated)
+```
+
+```{r}
+reg_1 <- lm(outcome ~ arm, data = data_generated)
+
+arms <- c("Treatment 1", "Treatment 2")
+
+tidyAndMCA <- function(regression, arms) {
+  regression_tidy <- tidy(regression)
+  
+  arms <- paste0("arm", arms)
+  
+  regression_tidy_adjusted <- regression_tidy %>% 
+    mutate(p.value.adjusted = if_else(term %in% arms, p.adjust(p.value, method = "bonferroni"), p.value))
+  
+  return(regression_tidy_adjusted)
+}
+
+reg_1_tidyAndMCA <- tidyAndMCA(reg_1, arms)
+
+```
+
+```{r}
+# Control Mean
+control_mean <- data_generated %>% 
+  filter(arm == "Control") %>%
+  summarise(mean = mean(outcome, na.rm = TRUE)) %>% 
+  pull(mean)
+```
+
+
+```{r}
+# Arm to pull from regression coefficients 
+arms <- paste0("arm", arms)
+```
+
+
+```{r}
+# Pull from regression coefficients  
+dataPlot <- reg_1_tidyAndMCA %>% 
+  filter(term %in% arms)
+
+# Calculate CIs
+dataPlot <- dataPlot %>% 
+  mutate(estimate = estimate + control_mean,
+         lower = estimate - 1.96*std.error,
+         upper = estimate + 1.96*std.error)
+
+# Add control mean to plotting table
+dataPlot <- dataPlot %>% 
+  add_row(term = "Control",
+          estimate = control_mean,
+          .before = 1)
+
+# Arm names
+table(dataPlot$term)
+
+arm_levels <- c("Control", "armTreatment 1", "armTreatment 2")
+
+# 
+dataPlot <- dataPlot %>% 
+  mutate(term = factor(term, levels = arm_levels))
+```
+
+```{r}
+# Labels
+dataPlot <- dataPlot %>% 
+  mutate(arm_label = case_when(term == "Control" ~ "Control",
+                               term == "armTreatment 1" ~ "Treatment 1",
+                               term == "armTreatment 2" ~ "Treatment 2",
+                               TRUE ~ NA_character_),
+         estimate_label = as.character(formatC(round(estimate, digits = 2),
+                                               digits = 3,
+                                               format = "fg", flag = "#" )),
+         p.value_label = case_when(p.value <= 0.1 & p.value > 0.5 ~ "+",
+                                   p.value <= 0.5 & p.value > 0.01 ~ "*",
+                                   p.value <= 0.01 ~ "**",
+                                   TRUE ~ NA_character_)
+         )
+
+```
+
+
+```{r}
+dataPlot <- dataPlot %>% 
+  mutate(bar_color = if_else(term == "Control", "Control", "Treatment"))
+
+bar_colors <- c(pujGrey, pujGreen1)
+
+plot <- ggplot() +
+  geom_col(data = dataPlot, aes(x = arm_label,
+                                y = estimate,
+                                fill = bar_color)) +
+  scale_fill_manual(values = bar_colors) +
+  geom_errorbar(data = dataPlot,
+                aes(x= arm_label, ymin=upper, ymax=lower), width=0.2, size=1, color=pujOpal1) +
+  geom_text(data = dataPlot, aes(x = arm_label,
+                                y = (estimate*.85) - (if_else(is.na(std.error), 0, std.error*1.96)),
+                                label = estimate_label), size = 8, fontface = 2, color = "white",
+            family = "Tahoma") +
+  geom_text(data = dataPlot, aes(x = arm_label,
+                                y = upper*1.05,
+                                label = p.value_label), size = 5, fontface = 2, color = "black",
+            family = "Tahoma") +
+  theme(panel.background = element_blank(),
+        axis.line = element_line(colour = "black"),
+        legend.position="none",
+        axis.title.x = element_blank(),
+        text = element_text(size = 12, family = "Tahoma"),
+        plot.caption = element_text(hjust = 0, size = 10)) +
+  coord_cartesian(ylim=c(0, max(dataPlot$upper, na.rm = TRUE)*1.1), xlim=c(1, 3)) +
+  scale_y_continuous(limits = c(0, max(dataPlot$upper, na.rm = TRUE)*1.1), expand = c(0, 0)) +
+  labs(x = "",
+       y = "Continuous Outcome",
+       caption = paste0("N = ", as.character(total_sample), "\n",
+                        "** p < 0.01, * p <0.05, + p < 0.1 \n",
+                        "Adjusted for multiple comparisons using the Bonferroni method"))
+
+plot
+```
+
+```{r}
+# ggsave(filename = "Treatment Effect Plot Example.png",
+#        plot = plot,
+#        path = "/Users/pujenshrestha/Documents/Visualisations/Finalised Examples/",
+#        width = 4.5,
+#        height = 4,
+#        units = "in",
+#        dpi = 300)
+```
+
