@@ -18,7 +18,7 @@ library(patchwork)
 library(data.table)
 library(lubridate)
 
-options(scipen=999)
+options(scipen = 999)
 
 # camcorder::gg_record(
 #   dir = here::here('covid_ribbon_plots/img'),
@@ -32,9 +32,8 @@ options(scipen=999)
 # Read in data
 
 ```{r}
-covid_cases <- fread("/Users/pujenshrestha/Documents/Visualisations/Ribbon Plot/owid-covid-data.csv") %>% 
+covid_cases <- fread("./Ribbon Plot/owid-covid-data.csv") %>%
   janitor::clean_names()
-
 ```
 
 # Set colour palette
@@ -58,14 +57,14 @@ description_color <- color_palette[1]
 # )
 
 country_colors <- c(
-  'United Kingdom' = color_palette[2],
-  'United States' = color_palette[3],
-  'Canada' = color_palette[4],
-  'France' = color_palette[5],
-  'Italy' = color_palette[6],
-  'Germany' = color_palette[7],
-  'Japan' = color_palette[8]
-) 
+  "United Kingdom" = color_palette[2],
+  "United States" = color_palette[3],
+  "Canada" = color_palette[4],
+  "France" = color_palette[5],
+  "Italy" = color_palette[6],
+  "Germany" = color_palette[7],
+  "Japan" = color_palette[8]
+)
 ```
 
 # Basic Bump plot
@@ -75,27 +74,31 @@ country_colors <- c(
 ### Clean date data
 
 ```{r}
-covid_cases <- covid_cases %>% 
-  mutate(year = year(date), # get year
-         month = month(date), # get month 
-         quarter = case_when(month == 1 | month == 2 | # Create quarter
-                               month == 3 ~ 0,
-                             month == 4 | month == 5 |
-                               month == 6 ~ .25,
-                             month == 7 | month == 8 |
-                               month == 9 ~ .5,
-                             month == 10 | month == 11 |
-                               month == 12 ~ .75),
-         # year = year + quarter, # sum year and quarter (easier to plot this way)
-         new_cases = if_else(is.na(new_cases), 0, new_cases)) # new cases
+covid_cases <- covid_cases %>%
+  mutate(
+    year = year(date), # get year
+    month = month(date), # get month
+    quarter = case_when(
+      month == 1 | month == 2 | # Create quarter
+        month == 3 ~ 0,
+      month == 4 | month == 5 |
+        month == 6 ~ .25,
+      month == 7 | month == 8 |
+        month == 9 ~ .5,
+      month == 10 | month == 11 |
+        month == 12 ~ .75
+    ),
+    # year = year + quarter, # sum year and quarter (easier to plot this way)
+    new_cases = if_else(is.na(new_cases), 0, new_cases)
+  ) # new cases
 ```
 
 ### Get total cases in country by year
 
 ```{r}
-country_cases_by_year <- covid_cases %>% 
-  select(year, state = location, cases = new_cases) %>% 
-  group_by(year, state) %>% 
+country_cases_by_year <- covid_cases %>%
+  select(year, state = location, cases = new_cases) %>%
+  group_by(year, state) %>%
   summarise(cases = sum(cases))
 
 # country_cases_by_year <- country_cases_by_year %>%
@@ -108,38 +111,37 @@ country_cases_by_year <- covid_cases %>%
 #            state == "Egypt" |
 #            state == "Nigeria" |
 #            state == "Japan" |
-#            state == "Italy") %>% 
+#            state == "Italy") %>%
 #   mutate(cases = if_else(is.na(cases), 0, cases))
 
 country_cases_by_year <- country_cases_by_year %>%
   filter(state == "United Kingdom" |
-           state == "United States" |
-           state == "Canada" |
-           state == "France" |
-           state == "Italy" |
-           state == "Germany" |
-           state == "Japan") %>% 
+    state == "United States" |
+    state == "Canada" |
+    state == "France" |
+    state == "Italy" |
+    state == "Germany" |
+    state == "Japan") %>%
   mutate(cases = if_else(is.na(cases), 0, cases))
-
 ```
 
 ### Rank countries
 
 ```{r}
-country_rank_by_year_quarter <- country_cases_by_year %>% 
-  group_by(year) %>% 
+country_rank_by_year_quarter <- country_cases_by_year %>%
+  group_by(year) %>%
   mutate(
     rank = row_number(desc(cases)) # sort then rank based in row_number
-  ) %>% 
-  ungroup() %>% 
-  arrange(rank, year) 
+  ) %>%
+  ungroup() %>%
+  arrange(rank, year)
 
 
 max_rank <- 10 # just keep the top 10 (we only have 10 countries in this example but if were to generalise this plot it might be important)
 
 # Get the highest ranked country per year/quarter block (used for labeling)
-todays_top <- country_rank_by_year_quarter %>% 
-  filter(rank <= max_rank) %>% 
+todays_top <- country_rank_by_year_quarter %>%
+  filter(rank <= max_rank) %>%
   pull(state)
 ```
 
@@ -151,13 +153,13 @@ table(country_rank_by_year_quarter$year)
 ```
 
 ```{r}
-bump_chart_basic <- country_rank_by_year_quarter %>% 
-  filter(state %in% todays_top) %>% 
-  #add
-  mutate(state = as.character(state)) %>% 
-  #end
-  ggplot(aes(year, rank, color = state)) + 
-  geom_point(shape = '|', stroke = 6) +
+bump_chart_basic <- country_rank_by_year_quarter %>%
+  filter(state %in% todays_top) %>%
+  # add
+  mutate(state = as.character(state)) %>%
+  # end
+  ggplot(aes(year, rank, color = state)) +
+  geom_point(shape = "|", stroke = 6) +
   geom_bump(size = 1) +
   geom_text(
     data = country_rank_by_year_quarter %>% filter(year == "2020", state %in% todays_top),
@@ -172,7 +174,7 @@ bump_chart_basic <- country_rank_by_year_quarter %>%
     nudge_x = 0.1
   ) +
   annotate(
-    'text',
+    "text",
     x = c(2020, 2022),
     y = c(0.25, 0.25),
     label = c(2020, 2022),
@@ -181,12 +183,12 @@ bump_chart_basic <- country_rank_by_year_quarter %>%
     size = 4,
     color = description_color
   ) +
-  scale_y_reverse(position = 'right', breaks = seq(16, 2, -2)) +
+  scale_y_reverse(position = "right", breaks = seq(16, 2, -2)) +
   scale_color_manual(values = country_colors) +
   coord_cartesian(xlim = c(2019.5, 2022.5), ylim = c(10.5, 0.25), expand = F) +
   theme_void() +
   theme(
-    legend.position = 'none',
+    legend.position = "none",
     panel.grid.major.x = element_blank(),
     panel.grid.minor.x = element_blank(),
     plot.background = element_rect(fill = "grey", color = NA),
@@ -194,15 +196,15 @@ bump_chart_basic <- country_rank_by_year_quarter %>%
       color = description_color
     ),
     plot.subtitle = element_text(
-      margin = margin(t = 3, b = 2, unit = 'mm')
+      margin = margin(t = 3, b = 2, unit = "mm")
     ),
     plot.title = element_text(
       size = 20
     )
   ) +
   labs(
-    title = 'COVID-19 cases across 10 countries',
-    subtitle = 'Cases from 2020 to 2022'
+    title = "COVID-19 cases across 10 countries",
+    subtitle = "Cases from 2020 to 2022"
   )
 
 bump_chart_basic
@@ -215,50 +217,54 @@ bump_chart_basic
 "Here I have used a little bit of functional programming to compute the percentages for each year. This means that we have to compute lower and upper bounds for the bars (with `cumsum()`)"
 
 ```{r}
-# country_rank_by_year_quarter <- country_rank_by_year_quarter %>% 
+# country_rank_by_year_quarter <- country_rank_by_year_quarter %>%
 #   mutate(cases = log(cases)) # Just to show that this type of plot can someone times need a transformation to be readable. This occurs when the differences in the y variable are so large that it because under readable because of scaling!
 
-g7_population <-  tibble(state = c("United States",
-                       "United Kingdom",
-                       "France",
-                       "Italy",
-                       "Germany",
-                       "Canada",
-                       "Japan"),
-                       population = c(331900000,
-                                      67330000,
-                                      67500000,
-                                      59070000,
-                                      81130000,
-                                      38250000,
-                                      125700000)
-                       )
+g7_population <- tibble(
+  state = c(
+    "United States",
+    "United Kingdom",
+    "France",
+    "Italy",
+    "Germany",
+    "Canada",
+    "Japan"
+  ),
+  population = c(
+    331900000,
+    67330000,
+    67500000,
+    59070000,
+    81130000,
+    38250000,
+    125700000
+  )
+)
 
-country_rank_by_year_quarter <- left_join(country_rank_by_year_quarter, g7_population) %>% 
-  mutate(cases = cases/population) %>% 
+country_rank_by_year_quarter <- left_join(country_rank_by_year_quarter, g7_population) %>%
+  mutate(cases = cases / population) %>%
   select(-population)
-
 ```
 
 ```{r}
 bar_width <- 0.1
-others_color <- 'grey70' # Necessary to not leave out contribution of other countries
+others_color <- "grey70" # Necessary to not leave out contribution of other countries
 
 compute_percentage_bounds <- function(year) {
-  country_rank_by_year_quarter %>% 
-    filter(year == {{year}}) %>% 
-    arrange(desc(cases)) %>% 
+  country_rank_by_year_quarter %>%
+    filter(year == {{ year }}) %>%
+    arrange(desc(cases)) %>%
     mutate(
       percentage_flights = cases / sum(cases),
-      state = if_else(state %in% todays_top, state, 'Others')
-    ) %>% 
-    group_by(year, state) %>% 
+      state = if_else(state %in% todays_top, state, "Others")
+    ) %>%
+    group_by(year, state) %>%
     summarise(
-      percentage_flights = sum(percentage_flights), 
+      percentage_flights = sum(percentage_flights),
       rank = min(rank),
-      .groups = 'drop'
-    ) %>% 
-    arrange(desc(rank)) %>% 
+      .groups = "drop"
+    ) %>%
+    arrange(desc(rank)) %>%
     mutate(
       percentage_flights_lower = cumsum(c(0, percentage_flights[-7])),
       percentage_flights_upper = cumsum(percentage_flights)
@@ -268,13 +274,12 @@ compute_percentage_bounds <- function(year) {
 year_quarter_vector <- unique(country_rank_by_year_quarter$year)
 
 percentages_countries_by_year <- map_dfr(year_quarter_vector, compute_percentage_bounds)
-
 ```
 
 ## Plot Bars
 
 ```{r}
-percentage_bars_plot <- percentages_countries_by_year %>% 
+percentage_bars_plot <- percentages_countries_by_year %>%
   ggplot() +
   geom_rect(
     aes(
@@ -284,11 +289,11 @@ percentage_bars_plot <- percentages_countries_by_year %>%
       ymax = percentage_flights_upper,
       fill = state
     ),
-    col = 'white'
+    col = "white"
   ) +
   theme_void() +
   theme(
-    legend.position = 'none',
+    legend.position = "none",
     panel.grid.major.x = element_blank(),
     panel.grid.minor.x = element_blank(),
     plot.background = element_rect(fill = color_palette[10], color = NA),
@@ -303,15 +308,14 @@ percentage_bars_plot <- percentages_countries_by_year %>%
       hjust = 0.05,
       vjust = 0.05
     )
-    ) +
-    labs(
-    title = 'G-7 Countries ranked by COVID-19 cases from 2020 to 2022',
-    subtitle = 'Height of bars indicate percentage of total cases standarised by population size'
   ) +
-  scale_fill_manual(values = c(country_colors, 'Others' = others_color))
+  labs(
+    title = "G-7 Countries ranked by COVID-19 cases from 2020 to 2022",
+    subtitle = "Height of bars indicate percentage of total cases standarised by population size"
+  ) +
+  scale_fill_manual(values = c(country_colors, "Others" = others_color))
 
 percentage_bars_plot
-
 ```
 
 ## Compute Ribbons data
@@ -321,37 +325,36 @@ n_points <- 100
 
 margin_between_ribbons <- 0.003
 compute_ribbons <- function(state) {
-  
-  state_data <- percentages_countries_by_year %>% 
-    filter(state == {{state}})
-  
-  lower_bounds <- state_data %>% 
-    select(year, percentage_flights_lower) %>% 
+  state_data <- percentages_countries_by_year %>%
+    filter(state == {{ state }})
+
+  lower_bounds <- state_data %>%
+    select(year, percentage_flights_lower) %>%
     mutate(
-      x_from = year + bar_width, 
+      x_from = year + bar_width,
       x_to = year + 1 - bar_width,
       y_from = percentage_flights_lower + margin_between_ribbons,
       y_to = c(percentage_flights_lower[-1], percentage_flights_lower[7]) + margin_between_ribbons,
       sigmoid = pmap(list(x_from, x_to, y_from, y_to), sigmoid, n = n_points, smooth = 8)
-    ) %>% 
-    #filter(year < 2022) %>% 
-    unnest(sigmoid) %>% 
+    ) %>%
+    # filter(year < 2022) %>%
+    unnest(sigmoid) %>%
     select(x, lower = y)
-  
-  upper_bounds <- state_data %>% 
-    select(year, percentage_flights_upper) %>% 
+
+  upper_bounds <- state_data %>%
+    select(year, percentage_flights_upper) %>%
     mutate(
-      x_from = year + bar_width, 
+      x_from = year + bar_width,
       x_to = year + 1 - bar_width,
       y_from = percentage_flights_upper - margin_between_ribbons,
       y_to = c(percentage_flights_upper[-1], percentage_flights_upper[7]) - margin_between_ribbons,
       sigmoid = pmap(list(x_from, x_to, y_from, y_to), sigmoid, n = n_points)
-    ) %>% 
-    #filter(year < 2022) %>% 
-    unnest(sigmoid) %>% 
+    ) %>%
+    # filter(year < 2022) %>%
+    unnest(sigmoid) %>%
     select(x, upper = y)
-  
-  left_join(lower_bounds, upper_bounds, by = 'x') %>% 
+
+  left_join(lower_bounds, upper_bounds, by = "x") %>%
     mutate(state = state)
 }
 
@@ -361,12 +364,12 @@ ribbons_data <- map_dfr(todays_top, compute_ribbons)
 ## Compute mean percentage for labels of rank and country
 
 ```{r, warning=FALSE}
-mean_percentages <- percentages_countries_by_year %>% 
-  group_by(state, year) %>% 
+mean_percentages <- percentages_countries_by_year %>%
+  group_by(state, year) %>%
   summarise(
     middle_percentage = mean(c(percentage_flights_lower, percentage_flights_upper)),
     rank = max(rank),
-    .groups = 'drop'
+    .groups = "drop"
   )
 ```
 
@@ -380,7 +383,7 @@ combined_plot <- percentage_bars_plot +
     alpha = 0.5
   ) +
   annotate(
-    'text',
+    "text",
     x = c(2020 - bar_width, 2021, 2022 + bar_width),
     y = c(1.1, 1.1, 1.1),
     label = c(2020, 2021, 2022),
@@ -407,7 +410,7 @@ combined_plot <- percentage_bars_plot +
     xlim = c(2019.25, 2022.25),
     ylim = c(0, 1.1)
   ) +
-  scale_color_manual(values = c(country_colors, "Others" = others_color)) 
+  scale_color_manual(values = c(country_colors, "Others" = others_color))
 
 print(combined_plot)
 ```
@@ -415,10 +418,10 @@ print(combined_plot)
 ## Turn order of layers so that bars are always on top
 
 ```{r}
-ribbons <- combined_plot$layers[[2]] 
+ribbons <- combined_plot$layers[[2]]
 rects <- combined_plot$layers[[1]]
 
-combined_plot$layers[[1]] <- ribbons 
+combined_plot$layers[[1]] <- ribbons
 combined_plot$layers[[2]] <- rects
 ribbon_bump_chart <- combined_plot
 ```
@@ -427,7 +430,7 @@ ribbon_bump_chart <- combined_plot
 ```{r}
 # ggsave(filename = "Ribbon Plot Example.png",
 #        plot = ribbon_bump_chart,
-#        path = "/Users/pujenshrestha/Documents/Visualisations/Finalised Examples/",
+#        path = "./Finalised Examples/",
 #        width = 8.5,
 #        height = 4.5,
 #        units = "in",
