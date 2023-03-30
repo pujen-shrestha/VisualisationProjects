@@ -16,7 +16,7 @@ library(confintr) # for confidence intervals
 library(data.table)
 library(purrr)
 
-source("/Users/pujenshrestha/Documents/Visualisations/Helper Functions.R")
+source("https://raw.githubusercontent.com/pujen-shrestha/VisualisationProjects/master/Helper%20Functions.R")
 ```
 
 ## Random data
@@ -26,8 +26,8 @@ Generating random data that would look something like a BehSci RCT or the output
 ```{r}
 
 generate_data <- function(rep, rep_n, mean, sd) {
-  data_out <- tibble(group = rep(rep, rep_n),
-                 outcome = rnorm(rep_n, mean = mean, sd = sd)) 
+  data_out <- tidyverse::tibble(group = rep(rep, rep_n),
+                 outcome = rnorm(rep_n, mean = mean, sd = sd))
   return(data_out)
 }
 
@@ -49,9 +49,9 @@ data_generated <- data_1 %>%
 ```{r}
 
 confi_inter <- function(group_id) {
-  dataplot <- data_generated %>% 
-    filter(group == group_id) %>%
-    pull(outcome) %>% 
+  dataplot <- data_generated %>%
+    filter(tidyverse::group == group_id) %>%
+    tidyverse::pull(outcome) %>%
     ci_mean()
   
   dataplot <- c(dataplot$estimate, dataplot$interval)
@@ -219,7 +219,7 @@ p_left <-
   theme_void() +
   coord_cartesian(xlim = c(0, 9))
 
-p_left 
+p_left
 ```
 
 ```{r}
