@@ -19,7 +19,9 @@ library(magick)
 ```
 
 ```{r}
-data <- read_csv("/Users/pujenshrestha/Documents/Pujen/VisualisationProjects/EVsales/IEA-EV-dataEV salesCarsHistorical.csv")
+# data <- read_csv("/Users/pujenshrestha/Documents/Pujen/VisualisationProjects/EVsales/IEA-EV-dataEV salesCarsHistorical.csv")
+
+data <- read_csv("https://raw.githubusercontent.com/pujen-shrestha/VisualisationProjects/master/EVsales/IEA-EV-dataEV%20salesCarsHistorical.csv")
 ```
 
 ```{r}
