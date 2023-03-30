@@ -19,7 +19,7 @@ library(magick)
 ```
 
 ```{r}
-data <- read_csv("/Users/pujenshrestha/Documents/Visualisations/EVsales/IEA-EV-dataEV salesCarsHistorical.csv")
+data <- read_csv("/Users/pujenshrestha/Documents/Pujen/VisualisationProjects/EVsales/IEA-EV-dataEV salesCarsHistorical.csv")
 ```
 
 ```{r}
@@ -99,4 +99,3 @@ plot <- plot +
 #        units = "in",
 #        dpi = 300)
 ```
-
