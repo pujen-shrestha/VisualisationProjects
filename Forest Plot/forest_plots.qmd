@@ -16,7 +16,7 @@ library(confintr) # for confidence intervals
 library(data.table)
 library(purrr)
 
-source("https://raw.githubusercontent.com/pujen-shrestha/VisualisationProjects/master/Helper%20Functions.R")
+source("./Helper Functions.R")
 ```
 
 ## Random data
@@ -24,10 +24,11 @@ source("https://raw.githubusercontent.com/pujen-shrestha/VisualisationProjects/m
 Generating random data that would look something like a BehSci RCT or the output of some regression. This is data is not meant to be looked into too hard! Thanks!
 
 ```{r}
-
 generate_data <- function(rep, rep_n, mean, sd) {
-  data_out <- tidyverse::tibble(group = rep(rep, rep_n),
-                 outcome = rnorm(rep_n, mean = mean, sd = sd))
+  data_out <- tidyverse::tibble(
+    group = rep(rep, rep_n),
+    outcome = rnorm(rep_n, mean = mean, sd = sd)
+  )
   return(data_out)
 }
 
@@ -37,29 +38,29 @@ data_3 <- generate_data(3, 200, 6, 3.2)
 data_4 <- generate_data(4, 200, 7, 2.1)
 data_5 <- generate_data(5, 200, 8, 2.0)
 
-data_generated <- data_1 %>% 
-  rbind(data_2) %>% 
-  rbind(data_3) %>% 
-  rbind(data_4) %>% 
-  rbind(data_5) %>% 
+data_generated <- data_1 %>%
+  rbind(data_2) %>%
+  rbind(data_3) %>%
+  rbind(data_4) %>%
+  rbind(data_5) %>%
   mutate(group = as.character(group))
-
 ```
 
 ```{r}
-
 confi_inter <- function(group_id) {
   dataplot <- data_generated %>%
     filter(tidyverse::group == group_id) %>%
     tidyverse::pull(outcome) %>%
     ci_mean()
-  
+
   dataplot <- c(dataplot$estimate, dataplot$interval)
-  
-  dataplot <- tibble(group_id = group_id,
-                     estimate = dataplot[1],
-                     lower = dataplot[2],
-                     higher = dataplot[3])
+
+  dataplot <- tibble(
+    group_id = group_id,
+    estimate = dataplot[1],
+    lower = dataplot[2],
+    higher = dataplot[3]
+  )
   return(dataplot)
 }
 
@@ -70,16 +71,16 @@ dataplot <- map_dfr(groups, confi_inter)
 reg_1 <- lm(outcome ~ group, data = data_generated)
 reg_1_summary <- summary(reg_1)
 reg_1_coefficients <- reg_1_summary$coefficients
-test <- c(0, reg_1_coefficients[2:5,4])
+test <- c(0, reg_1_coefficients[2:5, 4])
 
 dataplot$pvalues <- test
 dataplot$group_id <- as.character(dataplot$group_id)
 ```
 
 ```{r}
-dataPlot_control <- dataplot[1,]
+dataPlot_control <- dataplot[1, ]
 
-dataPlot <- dataplot[2:5,]
+dataPlot <- dataplot[2:5, ]
 ```
 
 ```{r}
@@ -90,22 +91,22 @@ glimpse(dataPlot)
 # Start plotting 
 
 ```{r}
-p <- dataPlot %>% 
-  ggplot(aes(y = factor(group_id))) + 
+p <- dataPlot %>%
+  ggplot(aes(y = factor(group_id))) +
   theme_classic()
 p
 ```
 ### Plot Estimate point and CI's
 ```{r}
 p <- p +
-  geom_linerange(aes(xmin=lower, xmax=higher), color = pujGreen2) +
-  geom_point(aes(x=estimate), shape=16, size=3.5, color = pujGreen2, stroke = 0)
+  geom_linerange(aes(xmin = lower, xmax = higher), color = pujGreen2) +
+  geom_point(aes(x = estimate), shape = 16, size = 3.5, color = pujGreen2, stroke = 0)
 p
 ```
 ### Set plot dimensions
 ```{r}
 p <- p +
-  coord_cartesian(ylim=c(1,5), xlim=c(4.5, 8.5))
+  coord_cartesian(ylim = c(1, 5), xlim = c(4.5, 8.5))
 p
 ```
 ### Use control mean as reference vline
@@ -113,8 +114,8 @@ p
 control_mean <- dataPlot_control$estimate[[1]]
 
 p <- p +
-  geom_vline(xintercept = control_mean, linetype="dashed", color = pujGrey) +
-  labs(x= "Outcome", y = "Group")
+  geom_vline(xintercept = control_mean, linetype = "dashed", color = pujGrey) +
+  labs(x = "Outcome", y = "Group")
 p
 ```
 ### Add text to describe reference vline
@@ -123,40 +124,43 @@ p <- p +
   annotate("text", x = control_mean - 1, y = 5, label = "Below control mean", color = pujGrey) +
   annotate("text", x = control_mean + 1, y = 5, label = "Above control mean", color = pujGrey)
 p
-
 ```
 
 ### Remove extra axis marks and text, change relevant acis marks and text to Grey
 ```{r}
-p_mid <- p + 
-  theme(axis.line.y = element_blank(),
-        axis.ticks.y= element_blank(),
-        axis.text.y= element_blank(),
-        axis.title.y= element_blank(),
-        axis.line.x = element_line(color = pujGrey),
-        axis.title.x = element_text(color = pujGrey))
+p_mid <- p +
+  theme(
+    axis.line.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.text.y = element_blank(),
+    axis.title.y = element_blank(),
+    axis.line.x = element_line(color = pujGrey),
+    axis.title.x = element_text(color = pujGrey)
+  )
 p_mid
 ```
 ### Create labels
 ```{r}
 # wrangle results into pre-plotting table form
-dataPlot <- dataPlot %>% 
+dataPlot <- dataPlot %>%
   # round estimates and 95% CIs to 2 decimal places for journal specifications
-  mutate(across(
-    c(estimate, lower, higher),
-    ~ str_pad(
-      round(.x, 2),
-      width = 4,
-      pad = "0",
-      side = "right"
-    )
-  ),
-  # add an "-" between HR estimate confidence intervals
-  estimate_lab = paste0(estimate, " (", lower, "-", higher, ")")) %>% 
+  mutate(
+    across(
+      c(estimate, lower, higher),
+      ~ str_pad(
+        round(.x, 2),
+        width = 4,
+        pad = "0",
+        side = "right"
+      )
+    ),
+    # add an "-" between HR estimate confidence intervals
+    estimate_lab = paste0(estimate, " (", lower, "-", higher, ")")
+  ) %>%
   # round p-values to two decimal places, except in cases where p < .001
   mutate(pvalues = case_when(
     pvalues < .001 ~ "<0.001",
-    round(pvalues, 2) == .05 ~ as.character(round(pvalues,3)),
+    round(pvalues, 2) == .05 ~ as.character(round(pvalues, 3)),
     pvalues < .01 ~ str_pad( # if less than .01, go one more decimal place
       as.character(round(pvalues, 3)),
       width = 4,
@@ -169,7 +173,7 @@ dataPlot <- dataPlot %>%
       pad = "0",
       side = "right"
     )
-  )) %>% 
+  )) %>%
   # add a row of data that are actually column names which will be shown on the plot in the next step
   bind_rows(
     data.frame(
@@ -179,8 +183,8 @@ dataPlot <- dataPlot %>%
       higher = "",
       pvalues = "p-value"
     )
-  ) 
-# %>% 
+  )
+# %>%
 #   mutate(group_id = fct_rev(fct_relevel(group_id, "Model")))
 
 glimpse(dataPlot)
@@ -188,16 +192,18 @@ glimpse(dataPlot)
 
 ```{r}
 p_left <-
-  dataPlot %>% 
+  dataPlot %>%
   ggplot(aes(y = group_id))
 p_left
 ```
 
 ```{r}
-p_left <- 
+p_left <-
   p_left +
-  geom_text(aes(x = 0, label = group_id), hjust = 0, fontface = "bold",
-            color = pujGrey)
+  geom_text(aes(x = 0, label = group_id),
+    hjust = 0, fontface = "bold",
+    color = pujGrey
+  )
 p_left
 ```
 
@@ -225,7 +231,7 @@ p_left
 ```{r}
 # right side of plot - pvalues
 p_right <-
-  dataPlot  %>% 
+  dataPlot %>%
   ggplot() +
   geom_text(
     aes(x = 0, y = group_id, label = pvalues),
@@ -233,7 +239,7 @@ p_right <-
     fontface = ifelse(dataPlot$pvalues == "p-value", "bold", "plain"),
     color = pujGrey
   ) +
-  theme_void() 
+  theme_void()
 
 p_right
 ```
@@ -251,12 +257,11 @@ layout <- c(
 ```
 
 ```{r}
-# ggsave(filename = "Forest Plot Example.png", 
+# ggsave(filename = "Forest Plot Example.png",
 #        plot = plot,
-#        path = "/Users/pujenshrestha/Documents/Visualisations/Finalised Examples/",
+#        path = "./Finalised Examples/",
 #        width = 8.5,
 #        height = 4.5,
 #        units = "in",
 #        dpi = 300)
 ```
-
